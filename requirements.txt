@@ -1,0 +1,56 @@
+motor
+redis
+
+# requirements.txt
+
+# Core dependencies
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+python-dotenv
+
+# Celery and task queue
+celery[redis]
+redis
+flower
+kombu
+
+# Video processing
+ffmpeg-python
+faster-whisper
+openai
+# TTS engines
+gtts
+murf
+
+# Cloud storage
+# google-api-python-client
+# google-oauth
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+
+
+pymongo
+motor # Async MongoDB driver
+
+# AI/ML
+azure-identity
+tiktoken
+
+# Utilities
+aiohttp
+aiofiles
+requests
+numpy
+
+# Monitoring and logging
+prometheus-client
+sentry-sdk
+
+# Testing (optional, for development)
+pytest
+pytest-asyncio
+pytest-cov

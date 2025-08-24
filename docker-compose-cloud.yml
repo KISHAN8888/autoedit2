@@ -1,0 +1,151 @@
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: video_processor_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-yourredispassword}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_processor_worker
+    # FIXED: Lowered concurrency from 2 to 1 to reduce Redis connections.
+    command: celery -A tasks worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-yourredispassword}
+    depends_on:
+      - redis
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - ./service_account.json:/app/service_account.json:ro
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+
+  celery_worker_high_priority:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_processor_worker_high
+    command: celery -A tasks worker --loglevel=info --concurrency=1 --queues=high_priority --hostname=worker_high@%h
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-yourredispassword}
+
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis      
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - ./service_account.json:/app/service_account.json:ro
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_processor_beat
+    command: celery -A tasks beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-yourredispassword}
+
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis      
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+
+  flower:
+    # FIXED: Changed from 'image: mher/flower' to a local build.
+    # This ensures Flower has your application code and can find the 'tasks' module.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_processor_flower
+    command: celery -A tasks flower --port=5555 --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - celery_worker
+      - redis
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_processor_api
+    command: uvicorn server_celery:app --host 0.0.0.0 --port 8000 --workers 2 --reload
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-yourredispassword}
+
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - .:/app
+    depends_on:
+      - celery_worker
+      - redis
+    networks:
+      - video_processor_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  video_processor_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  mongo_data:
