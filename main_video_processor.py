@@ -383,7 +383,7 @@ import time
 from pathlib import Path
 from dotenv import load_dotenv
 from video_transcriber import VideoTranscriber
-from video_summarizer import VideoSummarizer
+from video_summarizer2 import VideoSummarizer
 from google_drive_uploader import GoogleDriveUploader
 from mongodb_manager import MongoDBManager
 
@@ -574,11 +574,24 @@ class AsyncVideoProcessor:
                     with open(srt_debug_path, 'w', encoding='utf-8') as f:
                         f.write(srt_content)
                     logger.info(f"Saved SRT content to: {srt_debug_path}")
-                
+
+
+#============================================= apply background=========================================================================================================================================
+                frame_options = {
+                    'width': 882,      # 912 - (15 * 2)
+                    'height': 565,     # 308 - (15 * 2)
+                    'x': 15,
+                    'y': 15,
+                    'corner_radius': 15  # A smaller radius for a shorter frame
+                }              
+                background_image_path=r"C:\Users\kisha\OneDrive - NDS Infotech Ltd\Pictures\Screenshots\Screenshot 2025-08-02 000035.png"
+                overlay_options=frame_options  # <-- Pass the new options dictionary
+
+
                 # Step 2: Process SRT and create optimized video
                 logger.info("Step 2: Processing SRT and creating optimized video")
                 temp_output_path, cost_summary = await self.summarizer.process_srt_content_to_video_async(
-                    srt_content, input_video_path
+                    srt_content, input_video_path, background_image_path=background_image_path, overlay_options=overlay_options
                 )
                 
                 # Step 3: Copy to local output path temporarily
@@ -815,7 +828,7 @@ async def main_async():
         'transcription_language': 'en',   # Language code for transcription
         
         # TTS settings
-        'tts_engine': 'gtts',            # 'gtts' or 'murf'
+        'tts_engine': 'murf',            # 'gtts' or 'murf'
         'target_wpm': 160.0,             # Target words per minute for optimization
         
         # Cloud storage settings
@@ -825,11 +838,11 @@ async def main_async():
     
     # Input/Output paths and user info
     INPUT_VIDEO = r"C:\Users\kisha\Downloads\windowsinstallation.mp4"
-    USER_ID = "user_12345"  # Replace with actual user ID
+    USER_ID = "user_12336"  # Replace with actual user ID
     OUTPUT_VIDEO = None  # Will auto-generate, used for temp processing only
     
     # Processing options
-    KEEP_INTERMEDIATE_FILES = False  # Set to True to keep SRT files
+    KEEP_INTERMEDIATE_FILES = True  # Set to True to keep SRT files
     
     # === END CONFIGURATION ===
     
@@ -899,42 +912,42 @@ def main():
         print("\nProcess interrupted by user.")
         sys.exit(0)
 
-# Example of how to handle multiple videos with different users
-async def example_multiple_videos():
-    """Example of processing multiple videos concurrently for different users"""
+# # Example of how to handle multiple videos with different users
+# async def example_multiple_videos():
+#     """Example of processing multiple videos concurrently for different users"""
     
-    video_requests = [
-        {
-            'input_path': 'video1.mp4',
-            'user_id': 'user_001',
-            'config': {'tts_engine': 'gtts', 'target_wpm': 150}
-        },
-        {
-            'input_path': 'video2.mp4',
-            'user_id': 'user_002',
-            'config': {'tts_engine': 'murf', 'target_wpm': 170}
-        },
-        {
-            'input_path': 'video3.mp4',
-            'user_id': 'user_003',
-            'config': {'transcription_method': 'api'}
-        }
-    ]
+#     video_requests = [
+#         {
+#             'input_path': 'video1.mp4',
+#             'user_id': 'user_001',
+#             'config': {'tts_engine': 'gtts', 'target_wpm': 150}
+#         },
+#         {
+#             'input_path': 'video2.mp4',
+#             'user_id': 'user_002',
+#             'config': {'tts_engine': 'murf', 'target_wpm': 170}
+#         },
+#         {
+#             'input_path': 'video3.mp4',
+#             'user_id': 'user_003',
+#             'config': {'transcription_method': 'api'}
+#         }
+#     ]
     
-    # Process up to 2 videos concurrently
-    results = await process_multiple_videos_concurrently(video_requests, max_concurrent=2)
+#     # Process up to 2 videos concurrently
+#     results = await process_multiple_videos_concurrently(video_requests, max_concurrent=2)
     
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            print(f"Video {i+1} failed: {result}")
-        elif result.get('success'):
-            print(f"Video {i+1} completed successfully:")
-            print(f"  - Session ID: {result['session_id']}")
-            print(f"  - User ID: {result['user_id']}")
-            print(f"  - Google Drive File ID: {result['gdrive']['file_id']}")
-            print(f"  - View Link: {result['gdrive']['web_view_link']}")
-        else:
-            print(f"Video {i+1} failed: {result.get('error', 'Unknown error')}")
+#     for i, result in enumerate(results):
+#         if isinstance(result, Exception):
+#             print(f"Video {i+1} failed: {result}")
+#         elif result.get('success'):
+#             print(f"Video {i+1} completed successfully:")
+#             print(f"  - Session ID: {result['session_id']}")
+#             print(f"  - User ID: {result['user_id']}")
+#             print(f"  - Google Drive File ID: {result['gdrive']['file_id']}")
+#             print(f"  - View Link: {result['gdrive']['web_view_link']}")
+#         else:
+#             print(f"Video {i+1} failed: {result.get('error', 'Unknown error')}")
 
 if __name__ == "__main__":
     main()

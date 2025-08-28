@@ -17,6 +17,8 @@ import aiohttp
 from requests.exceptions import RequestException
 from murf import Murf
 from gtts import gTTS
+import tempfile
+from PIL import Image, ImageDraw
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
@@ -192,7 +194,7 @@ class VideoSummarizer:
             "transition_markers": ["string"]
         }}
 
-        TRANSCRIPT: {full_text[:4000]}...
+        TRANSCRIPT: {full_text}...
         """
         
         try:
@@ -204,7 +206,7 @@ class VideoSummarizer:
                     model=self.azure_deployment_name,
                     messages=[{"role": "user", "content": structure_prompt}],
                     response_format={"type": "json_object"},
-                    temperature=0.3
+                    temperature=0.7
                 )
             
             response = await loop.run_in_executor(self.executor, make_openai_call)
@@ -228,7 +230,104 @@ class VideoSummarizer:
                 "transition_markers": ["so", "now", "let's", "next"]
             }
             return fallback_analysis
+
+
+    # async def optimize_segment_with_context_async(
+    #     self,
+    #     segment: SRTSegment,
+    #     video_context: Dict,
+    #     prev_optimized: List[OptimizedSegment] = None,
+    #     upcoming_segments: List[SRTSegment] = None,
+    # ) -> OptimizedSegment:
+    #     """Async optimization of a single segment with context awareness"""
+    #     prev_optimized = prev_optimized or []
+    #     upcoming_segments = upcoming_segments or []
     
+    #     json_schema = SegmentOptimization.model_json_schema()
+    
+    #     optimization_prompt = f"""
+    #     You are an expert product marketer and scriptwriter, crafting a voice-over for a polished, 'sexy' product launch video.
+    
+    #     **GOAL:**
+    #     Your task is to transform the 'CURRENT SEGMENT' text, which is a dry description of on-screen actions,
+    #     into a compelling, engaging voice-over script that sounds like an actual product demonstration, not a summary.
+    
+    #     **RULES:**
+    #     1. **Adopt a Presenter's Tone:** Use an active, confident, first-person ("I'll show you...", "Let's try...")
+    #        or second-person ("You can see...", "Notice how...") perspective.
+    #     2. **Focus on Benefits:** Don't just state the action, briefly hint at the value. For example, instead of
+    #        "Clicking the save button," try "And just like that, all our work is saved securely."
+    #     3. **Maintain Sync at All Costs:** The generated script MUST be a direct narration of the actions described
+    #        in the 'CURRENT SEGMENT'. Do NOT invent actions or describe things that are not happening in the provided text.
+    #     4. **Inject Energy:** Use engaging and simple language. Words like "seamlessly," "instantly," "powerful," or
+    #        "simply" can add a professional touch.
+    #     5. **NO SUMMARIES:** Strictly avoid passive, descriptive phrases like "This video shows...", "Here we can see...",
+    #        or "The user is now...". Speak as if you are the one performing the actions.
+    
+    #     **JSON OUTPUT:**
+    #     Respond with a single JSON object matching this schema:
+    #     {json.dumps(json_schema, indent=2)}
+    
+    #     **CONTEXT:**
+    #     - Video Theme: {video_context.get("main_theme", "N/A")}
+    #     - Important Terms to Preserve: {video_context.get("important_terms", [])}
+    #     - Previous script lines for context: "{' '.join(s.optimized_text for s in prev_optimized)}"
+    #     - Upcoming topics for context: "{' '.join(s.text for s in upcoming_segments)}"
+    
+    #     **TASK:**
+    #     Now, transform the following segment text into a professional demo script.
+    
+    #     CURRENT SEGMENT TO TRANSFORM: "{segment.text}"
+    #     """
+    
+    #     try:
+    #         # Run API call in thread pool
+    #         loop = asyncio.get_event_loop()
+    
+    #         def make_openai_call():
+    #             return self.openai_client.chat.completions.create(
+    #                 model=self.azure_deployment_name,
+    #                 messages=[{"role": "user", "content": optimization_prompt}],
+    #                 response_format={"type": "json_object"},
+    #                 temperature=0.4,  # Increased temperature for more natural language
+    #             )
+    
+    #         response = await loop.run_in_executor(self.executor, make_openai_call)
+    
+    #         self._update_usage_and_cost(response.usage, model="gpt-4o-mini")
+    
+    #         response_json = json.loads(response.choices[0].message.content)
+    #         result = SegmentOptimization(**response_json)
+    
+    #         optimized_text = result.optimized_text
+    #         optimized_word_count = len(optimized_text.split())
+    #         estimated_duration = (optimized_word_count / self.target_wpm) * 60
+    #         speed_multiplier = (
+    #             segment.duration / estimated_duration if estimated_duration > 0 else 1.0
+    #         )
+    
+    #         return OptimizedSegment(
+    #             original=segment,
+    #             optimized_text=optimized_text,
+    #             optimized_word_count=optimized_word_count,
+    #             estimated_speech_duration=estimated_duration,
+    #             speed_multiplier=max(0.5, min(4.0, speed_multiplier)),
+    #             reasoning=result.reasoning,
+    #         )
+    
+    #     except Exception as e:
+    #         logger.error(f"Error optimizing segment {segment.index}: {e}")
+    #         return OptimizedSegment(
+    #             original=segment,
+    #             optimized_text=segment.text,
+    #             optimized_word_count=segment.word_count,
+    #             estimated_speech_duration=segment.duration,
+    #             speed_multiplier=1.0,
+    #             reasoning="Fallback: no optimization applied due to error",
+    #         )
+    
+
+
     async def optimize_segment_with_context_async(self, segment: SRTSegment, video_context: Dict, 
                                                   prev_optimized: List[OptimizedSegment] = None, 
                                                   upcoming_segments: List[SRTSegment] = None) -> OptimizedSegment:
@@ -453,7 +552,121 @@ class VideoSummarizer:
         except Exception as e:
             logger.error(f"Error getting duration for {file_path}: {e}")
             return 0.0
+
+    def _create_rounded_mask_image(self, width: int, height: int, radius: int, output_path: str):
+        """Creates a black PNG with a white rounded rectangle to use as a video mask."""
+        try:
+            # Create a black background image with a transparent alpha channel
+            mask = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(mask)
             
+            # Draw a white rounded rectangle on the mask.
+            # The alpha channel of this shape will define the video's shape.
+            draw.rounded_rectangle(
+                (0, 0, width, height),
+                fill=(255, 255, 255, 255), # White and fully opaque
+                radius=radius
+            )
+            mask.save(output_path, 'PNG')
+            logger.info(f"Successfully created temporary mask at {output_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create mask image: {e}")
+            return False
+
+    # REPLACE THE ENTIRE OLD _apply_background_async FUNCTION WITH THIS NEW ONE
+    async def _apply_background_async(self, input_video_path: str, background_image_path: str,
+                                      output_video_path: str, overlay_options: dict):
+        """
+        Overlays the video onto a background using a robust PNG mask for rounded corners.
+        This version adds a crop filter to ensure final dimensions are even, fixing encoder errors.
+        """
+        defaults = {
+            'width': 1280, 'height': 720, 'x': '(main_w-overlay_w)/2',
+            'y': '(main_h-overlay_h)/2', 'corner_radius': 0
+        }
+        opts = {**defaults, **overlay_options}
+        logger.info(f"Applying background with options: {opts}")
+
+        mask_path = None
+        temp_mask_file = None
+        try:
+            # --- START OF THE FIX ---
+            # This is the new, crucial first step.
+            # We crop the background [0:v] to ensure its dimensions are even numbers.
+            # The crop filter `floor(iw/2)*2` is a standard way to do this.
+            # The output is labeled [bg] and used in the subsequent steps.
+            filter_chain_prefix = "[0:v]crop=floor(iw/2)*2:floor(ih/2)*2[bg];"
+            # --- END OF THE FIX ---
+
+            if opts['corner_radius'] > 0:
+                temp_mask_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                mask_path = temp_mask_file.name
+                temp_mask_file.close()
+
+                if not self._create_rounded_mask_image(opts['width'], opts['height'], opts['corner_radius'], mask_path):
+                    raise ValueError("Mask image creation failed.")
+
+                # The filter chain now starts with the prefix and uses [bg] instead of [0:v]
+                filter_chain = (
+                    filter_chain_prefix +
+                    f"[1:v]scale={opts['width']}:{opts['height']}[scaled_video];"
+                    f"[scaled_video][2:v]alphamerge[masked_video];"
+                    f"[bg][masked_video]overlay={opts['x']}:{opts['y']}[v_out]"
+                )
+                
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-loop', '1', '-i', background_image_path,
+                    '-i', input_video_path,
+                    '-i', mask_path,
+                    '-filter_complex', filter_chain,
+                    '-map', '[v_out]', '-map', '1:a',
+                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
+                    '-pix_fmt', 'yuv420p', '-shortest',
+                    output_video_path
+                ]
+            else:
+                # The filter chain now starts with the prefix and uses [bg] instead of [0:v]
+                filter_chain = (
+                    filter_chain_prefix +
+                    f"[1:v]scale={opts['width']}:{opts['height']}[scaled_video];"
+                    f"[bg][scaled_video]overlay={opts['x']}:{opts['y']}[v_out]"
+                )
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-loop', '1', '-i', background_image_path,
+                    '-i', input_video_path,
+                    '-filter_complex', filter_chain,
+                    '-map', '[v_out]', '-map', '1:a',
+                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
+                    '-pix_fmt', 'yuv420p', '-shortest',
+                    output_video_path
+                ]
+
+            def apply_bg_sync():
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                return result.returncode, result.stderr
+
+            loop = asyncio.get_event_loop()
+            returncode, stderr = await loop.run_in_executor(self.executor, apply_bg_sync)
+
+            if returncode == 0 and os.path.exists(output_video_path):
+                logger.info(f"Successfully applied framed background to {output_video_path}")
+                return True
+            else:
+                logger.error(f"Failed to apply frame. FFmpeg returned {returncode}")
+                logger.error(f"FFmpeg command: {' '.join(cmd)}")
+                logger.error(f"FFmpeg stderr: {stderr}")
+                return False
+        except Exception as e:
+            logger.error(f"An exception occurred while applying frame: {e}")
+            return False
+        finally:
+            if mask_path and os.path.exists(mask_path):
+                os.remove(mask_path)
+                logger.info(f"Cleaned up temporary mask file: {mask_path}")
+
     async def process_video_segments_async(self, input_video: str, optimized_segments: List[OptimizedSegment]) -> str:
         """
         Async processing of video segments and return path to final output video.
@@ -805,36 +1018,104 @@ class VideoSummarizer:
             "estimated_cost_usd": self.total_cost
         }
     
-    async def process_srt_content_to_video_async(self, srt_content: str, input_video: str) -> tuple:
+    # async def process_srt_content_to_video_async(self, srt_content: str, input_video: str) -> tuple:
+    #     """
+    #     Main async method to process SRT content and create optimized video
+    #     Returns: (output_video_path, cost_summary)
+    #     """
+    #     logger.info("Starting SRT content processing for video optimization")
+        
+    #     try:
+    #         # Parse SRT content
+    #         segments = self.parse_srt_content(srt_content)
+            
+    #         if not segments:
+    #             raise ValueError("No valid segments found in SRT content")
+            
+    #         # Optimize segments
+    #         optimized_segments = await self.optimize_all_segments_async(segments)
+            
+    #         # Process video
+    #         output_video_path = await self.process_video_segments_async(input_video, optimized_segments)
+            
+    #         # Get cost summary
+    #         cost_summary = self.get_cost_summary()
+            
+    #         logger.info("SRT processing and video optimization complete")
+    #         return output_video_path, cost_summary
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in SRT processing: {e}")
+    #         raise
+
+    async def process_srt_content_to_video_async(
+        self,
+        srt_content: str,
+        input_video: str,
+        background_image_path: str = None,
+        overlay_options: Dict = None,
+    ) -> tuple:
         """
-        Main async method to process SRT content and create optimized video
-        Returns: (output_video_path, cost_summary)
+        Main async method to process SRT content and create optimized video.
+        Optionally applies a background image/frame to the final video.
         """
         logger.info("Starting SRT content processing for video optimization")
-        
+    
         try:
-            # Parse SRT content
             segments = self.parse_srt_content(srt_content)
-            
             if not segments:
                 raise ValueError("No valid segments found in SRT content")
-            
-            # Optimize segments
+    
             optimized_segments = await self.optimize_all_segments_async(segments)
-            
-            # Process video
-            output_video_path = await self.process_video_segments_async(input_video, optimized_segments)
-            
-            # Get cost summary
+    
+            intermediate_video_path = await self.process_video_segments_async(
+                input_video, optimized_segments
+            )
+    
+            final_video_path = intermediate_video_path
+            print(f"this si the fnal video path{final_video_path}")
+    
+            if background_image_path:
+                print(f"this is the backgorundimage path{background_image_path}")
+                if not os.path.exists(background_image_path):
+                    logger.error(
+                        f"Background image not found at {background_image_path}. Skipping."
+                    )
+                else:
+                    with tempfile.NamedTemporaryFile(
+                        suffix=".mp4", delete=False
+                    ) as dest_f:
+                        composited_video_path = dest_f.name
+    
+                    # Use provided overlay options, or an empty dict for defaults
+                    current_overlay_options = overlay_options or {}
+    
+                    success = await self._apply_background_async(
+                        intermediate_video_path,
+                        background_image_path,
+                        composited_video_path,
+                        current_overlay_options,
+                    )
+    
+                    if success:
+                        final_video_path = composited_video_path
+                        os.remove(intermediate_video_path)
+                    else:
+                        logger.warning(
+                            "Could not apply frame. Returning the original video."
+                        )
+                        os.remove(composited_video_path)
+    
             cost_summary = self.get_cost_summary()
-            
+    
             logger.info("SRT processing and video optimization complete")
-            return output_video_path, cost_summary
-            
+            return final_video_path, cost_summary
+    
         except Exception as e:
             logger.error(f"Error in SRT processing: {e}")
             raise
-    
+
+
     def __del__(self):
         """Cleanup thread pool executor"""
         if hasattr(self, 'executor'):

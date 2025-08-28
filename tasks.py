@@ -94,9 +94,8 @@
 #         # Example: Send email, Slack message, etc.
 #         pass
 # tasks.py
-"""
-Celery tasks for async video processing
-"""
+
+
 import os
 import asyncio
 import logging

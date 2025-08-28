@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: video_processor_worker
     # FIXED: Lowered concurrency from 2 to 1 to reduce Redis connections.
-    command: celery -A tasks worker --loglevel=info --concurrency=4
+    command: celery -A tasks worker --loglevel=info --concurrency=2
     env_file:
       - .env
     environment:
