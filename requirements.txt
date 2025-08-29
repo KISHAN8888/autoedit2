@@ -54,3 +54,7 @@ sentry-sdk
 pytest
 pytest-asyncio
 pytest-cov
+
+pydantic-settings
+
+pillow
