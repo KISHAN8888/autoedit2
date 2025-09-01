@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 
 class MongoDBManager:
     """Async MongoDB manager for video processing tasks"""
-    
+
+    # Add this to your MongoDBManager.__init__ method
     def __init__(self, mongodb_uri: str, database_name: str = "emoai2"):
         self.mongodb_uri = mongodb_uri
         self.database_name = database_name
@@ -17,9 +18,11 @@ class MongoDBManager:
         self.tasks_collection = None
         self.videos_collection = None
         self.stats_collection = None
+        self.users_collection = None  # Add this line
         
         logger.info(f"MongoDB manager initialized for database: {database_name}")
-
+    
+    # Add this to your initialize method
     async def initialize(self):
         """Initialize MongoDB connection and create indexes"""
         try:
@@ -30,6 +33,7 @@ class MongoDBManager:
             self.tasks_collection = self.db.processing_tasks
             self.videos_collection = self.db.processed_videos
             self.stats_collection = self.db.processing_stats
+            self.users_collection = self.db.users  # Add this line
             
             # Test connection
             await self.client.admin.command('ping')
@@ -41,7 +45,8 @@ class MongoDBManager:
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             raise
-
+    
+    # Add this to your _create_indexes method
     async def _create_indexes(self):
         """Create database indexes for optimal performance"""
         try:
@@ -58,10 +63,69 @@ class MongoDBManager:
             await self.videos_collection.create_index("session_id", unique=True)
             await self.videos_collection.create_index([("created_at", -1)])
             
+            # Users collection indexes  # Add this section
+            await self.users_collection.create_index("email", unique=True)
+            await self.users_collection.create_index("is_active")
+            await self.users_collection.create_index([("created_at", -1)])
+            
             logger.info("Database indexes created successfully")
             
         except Exception as e:
             logger.warning(f"Error creating indexes: {e}")
+
+    # def __init__(self, mongodb_uri: str, database_name: str = "emoai2"):
+    #     self.mongodb_uri = mongodb_uri
+    #     self.database_name = database_name
+    #     self.client = None
+    #     self.db = None
+    #     self.tasks_collection = None
+    #     self.videos_collection = None
+    #     self.stats_collection = None
+        
+    #     logger.info(f"MongoDB manager initialized for database: {database_name}")
+
+    # async def initialize(self):
+    #     """Initialize MongoDB connection and create indexes"""
+    #     try:
+    #         self.client = motor.motor_asyncio.AsyncIOMotorClient(self.mongodb_uri)
+    #         self.db = self.client[self.database_name]
+            
+    #         # Initialize collections
+    #         self.tasks_collection = self.db.processing_tasks
+    #         self.videos_collection = self.db.processed_videos
+    #         self.stats_collection = self.db.processing_stats
+            
+    #         # Test connection
+    #         await self.client.admin.command('ping')
+    #         logger.info("MongoDB connection established successfully")
+            
+    #         # Create indexes for better performance
+    #         await self._create_indexes()
+            
+    #     except Exception as e:
+    #         logger.error(f"Failed to connect to MongoDB: {e}")
+    #         raise
+
+    # async def _create_indexes(self):
+    #     """Create database indexes for optimal performance"""
+    #     try:
+    #         # Tasks collection indexes
+    #         await self.tasks_collection.create_index("task_id", unique=True)
+    #         await self.tasks_collection.create_index("user_id")
+    #         await self.tasks_collection.create_index("status")
+    #         await self.tasks_collection.create_index([("created_at", -1)])  # Descending for recent first
+    #         await self.tasks_collection.create_index([("user_id", 1), ("created_at", -1)])
+    #         await self.tasks_collection.create_index("celery_task_id")
+            
+    #         # Videos collection indexes  
+    #         await self.videos_collection.create_index("user_id")
+    #         await self.videos_collection.create_index("session_id", unique=True)
+    #         await self.videos_collection.create_index([("created_at", -1)])
+            
+    #         logger.info("Database indexes created successfully")
+            
+    #     except Exception as e:
+    #         logger.warning(f"Error creating indexes: {e}")
 
     async def close(self):
         """Close MongoDB connection"""

@@ -1009,7 +1009,7 @@ logger = logging.getLogger(__name__)
 
 # OpenAI Model Pricing (USD per 1 million tokens)
 MODEL_PRICING = {
-    "gpt-4o-mini": {"prompt_per_million": 0.15, "completion_per_million": 0.6},
+    "gpt-4.1-mini": {"prompt_per_million": 0.15, "completion_per_million": 0.6},
 }
 
 # Pydantic models for OpenAI structured outputs
@@ -1310,7 +1310,7 @@ class VideoSummarizer:
         # FFmpeg handler
         self.ffmpeg_processor = FFmpegProcessor(self.executor)
     
-    def _update_usage_and_cost(self, usage, model: str = "gpt-4o-mini"):
+    def _update_usage_and_cost(self, usage, model: str = "gpt-4.1-mini"):
         """Calculates cost for a single API call and updates totals."""
         if not usage:
             logger.warning("No usage data found in OpenAI response.")
@@ -1319,7 +1319,7 @@ class VideoSummarizer:
         prompt_tokens = usage.prompt_tokens
         completion_tokens = usage.completion_tokens
         
-        model_rates = MODEL_PRICING.get(model, MODEL_PRICING["gpt-4o-mini"])
+        model_rates = MODEL_PRICING.get(model, MODEL_PRICING["gpt-4.1-mini"])
         prompt_cost = (prompt_tokens / 1_000_000) * model_rates["prompt_per_million"]
         completion_cost = (completion_tokens / 1_000_000) * model_rates["completion_per_million"]
         call_cost = prompt_cost + completion_cost
@@ -1416,7 +1416,7 @@ class VideoSummarizer:
             
             response = await loop.run_in_executor(self.executor, make_openai_call)
             
-            self._update_usage_and_cost(response.usage, model="gpt-4o-mini")
+            self._update_usage_and_cost(response.usage, model="gpt-4.1-mini")
             
             response_json = json.loads(response.choices[0].message.content)
             analysis = VideoAnalysis(**response_json)
@@ -1474,7 +1474,7 @@ class VideoSummarizer:
             
             response = await loop.run_in_executor(self.executor, make_openai_call)
             
-            self._update_usage_and_cost(response.usage, model="gpt-4o-mini")
+            self._update_usage_and_cost(response.usage, model="gpt-4.1-mini")
             
             response_json = json.loads(response.choices[0].message.content)
             result = SegmentOptimization(**response_json)

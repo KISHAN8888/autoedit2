@@ -371,7 +371,7 @@
 #     import uvicorn
 #     uvicorn.run("app.main:app", host="localhost", port=8000, reload=False)
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, Any
 import os
@@ -388,7 +388,10 @@ from app.workers.celery_app import celery_app
 from app.database.mongodb_manager import MongoDBManager
 from app.config import get_settings
 from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
-
+from app.auth.routes import router as auth_router
+from app.auth.middleware import get_current_user
+from app.auth.service import AuthService
+from app.auth.routes import router as auth_router
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -414,7 +417,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
-
+app.include_router(auth_router)
 settings = get_settings()
 mongodb_manager = None
 MAX_FILE_SIZE = 500 * 1024 * 1024
@@ -460,14 +463,18 @@ async def health_check():
         }
     }
 
+
 @app.post("/process-video", response_model=TaskResponse)
 async def process_video(
-    user_id: str,
     file: UploadFile = File(...),
     background_image_path: Optional[str] = None,
-    overlay_options: Optional[str] = None
+    overlay_options: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
 ):
-    """Submit video for processing - goes directly to processing worker"""
+    """Submit video for processing - requires authentication"""
+    
+    # Get user_id from authenticated user instead of parameter
+    user_id = str(current_user["_id"])
     
     # Validate file
     allowed_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
@@ -495,7 +502,7 @@ async def process_video(
             shutil.copyfileobj(file.file, buffer)
         
         file_size = os.path.getsize(input_path)
-        logger.info(f"File uploaded: {file.filename} ({file_size} bytes)")
+        logger.info(f"File uploaded by user {user_id}: {file.filename} ({file_size} bytes)")
         
         # Parse config
         config = {}
@@ -536,7 +543,7 @@ async def process_video(
             "status": "processing"
         })
         
-        logger.info(f"Task {task_id} submitted to processing worker: {processing_task.id}")
+        logger.info(f"Task {task_id} submitted to processing worker by user {user_id}: {processing_task.id}")
         
         return TaskResponse(
             task_id=task_id,
@@ -550,8 +557,101 @@ async def process_video(
         if os.path.exists(upload_dir):
             shutil.rmtree(upload_dir, ignore_errors=True)
         
-        logger.error(f"Error processing upload: {e}")
+        logger.error(f"Error processing upload for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal processing error")
+
+# @app.post("/process-video", response_model=TaskResponse)
+# async def process_video(
+#     user_id: str,
+#     file: UploadFile = File(...),
+#     background_image_path: Optional[str] = None,
+#     overlay_options: Optional[str] = None
+# ):
+#     """Submit video for processing - goes directly to processing worker"""
+    
+#     # Validate file
+#     allowed_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
+#     file_extension = Path(file.filename).suffix.lower()
+#     if file_extension not in allowed_extensions:
+#         raise HTTPException(
+#             status_code=400, 
+#             detail=f"Unsupported format. Allowed: {', '.join(allowed_extensions)}"
+#         )
+    
+#     if hasattr(file, 'size') and file.size > MAX_FILE_SIZE:
+#         raise HTTPException(
+#             status_code=413, 
+#             detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
+#         )
+    
+#     task_id = str(uuid.uuid4())
+#     upload_dir = f"uploads/{task_id}"
+#     os.makedirs(upload_dir, exist_ok=True)
+#     input_path = os.path.join(upload_dir, f"input_{file.filename}")
+    
+#     try:
+#         # Save uploaded file
+#         with open(input_path, "wb") as buffer:
+#             shutil.copyfileobj(file.file, buffer)
+        
+#         file_size = os.path.getsize(input_path)
+#         logger.info(f"File uploaded: {file.filename} ({file_size} bytes)")
+        
+#         # Parse config
+#         config = {}
+#         if background_image_path:
+#             config["background_image_path"] = background_image_path
+        
+#         if overlay_options:
+#             try:
+#                 config["overlay_options"] = json.loads(overlay_options)
+#             except json.JSONDecodeError:
+#                 raise HTTPException(status_code=400, detail="Invalid overlay_options JSON")
+        
+#         # Create initial task record
+#         initial_task_data = {
+#             "task_id": task_id,
+#             "user_id": user_id,
+#             "filename": file.filename,
+#             "file_size": file_size,
+#             "status": "received",
+#             "created_at": datetime.utcnow(),
+#             "input_path": input_path,
+#             "upload_dir": upload_dir,
+#             "config": config
+#         }
+        
+#         await mongodb_manager.create_task_record(initial_task_data)
+        
+#         # Submit DIRECTLY to processing worker (high concurrency, no queuing)
+#         processing_task = celery_app.send_task(
+#             'app.workers.processing_worker.process_video_content',
+#             args=[task_id, input_path, user_id, config],
+#             task_id=f"processing_{task_id}",
+#             queue='processing'  # Different queue for processing worker
+#         )
+        
+#         await mongodb_manager.update_task_data(task_id, {
+#             "processing_task_id": processing_task.id,
+#             "status": "processing"
+#         })
+        
+#         logger.info(f"Task {task_id} submitted to processing worker: {processing_task.id}")
+        
+#         return TaskResponse(
+#             task_id=task_id,
+#             status="processing",
+#             message="Video processing started"
+#         )
+        
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         if os.path.exists(upload_dir):
+#             shutil.rmtree(upload_dir, ignore_errors=True)
+        
+#         logger.error(f"Error processing upload: {e}")
+#         raise HTTPException(status_code=500, detail="Internal processing error")
 
 @app.get("/task/{task_id}/status", response_model=TaskStatus)
 async def get_task_status(task_id: str):
