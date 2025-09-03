@@ -605,38 +605,38 @@ class VideoTranscriber:
         if hasattr(self, 'executor'):
             self.executor.shutdown(wait=False)
 
-# async def main():
-#     video_path = r"C:\personal_projs\fastapi-demo\ffmprgvid.mp4"
+async def main():
+    video_path = r"C:\personal_projs\fastapi-demo\ffmprgvid.mp4"
     
-#     # Check if file exists first
-#     if not os.path.exists(video_path):
-#         print(f"Error: Video file not found at {video_path}")
-#         return
+    # Check if file exists first
+    if not os.path.exists(video_path):
+        print(f"Error: Video file not found at {video_path}")
+        return
     
-#     print(f"Video file found: {video_path}")
-#     print(f"File size: {os.path.getsize(video_path) / (1024*1024):.2f} MB")
+    print(f"Video file found: {video_path}")
+    print(f"File size: {os.path.getsize(video_path) / (1024*1024):.2f} MB")
     
-#     # Provide your API key
-#     api_key = "5cCrTnA7Nv73iujYaIxW302WLbfuVCnR"
-#     transcriber = VideoTranscriber(transcription_method="api", api_key=api_key)
+    # Provide your API key
+    api_key = "5cCrTnA7Nv73iujYaIxW302WLbfuVCnR"
+    transcriber = VideoTranscriber(transcription_method="api", api_key=api_key)
     
-#     try:
-#         # Call the method on the instance
-#         language, srt_content = await transcriber.transcribe_video_async(video_path) 
-#         print(f"Language: {language}")
-#         print(f"SRT content length: {len(srt_content)} characters")
-#         print(f"SRT content: {repr(srt_content)}")  # repr() shows exact content including whitespace
+    try:
+        # Call the method on the instance
+        language, srt_content = await transcriber.transcribe_video_async(video_path) 
+        print(f"Language: {language}")
+        print(f"SRT content length: {len(srt_content)} characters")
+        print(f"SRT content: {repr(srt_content)}")  # repr() shows exact content including whitespace
         
-#         if not srt_content.strip():
-#             print("Warning: SRT content is empty or only whitespace")
-#         else:
-#             print(f"SRT: {srt_content}")
+        if not srt_content.strip():
+            print("Warning: SRT content is empty or only whitespace")
+        else:
+            print(f"SRT: {srt_content}")
             
-#     except Exception as e:
-#         print(f"Error during transcription: {e}")
-#         import traceback
-#         traceback.print_exc()
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        import traceback
+        traceback.print_exc()
 
-# if __name__ == "__main__":
-#     import asyncio
-#     asyncio.run(main())
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

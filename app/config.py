@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     
     # TTS
     murf_api_key: Optional[str] = None
-    tts_engine: str = "gtts"
+    tts_engine: str = "murf"
     target_wpm: float = 160.0
     
     # Google Drive
