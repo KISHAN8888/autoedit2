@@ -5,3 +5,4 @@ ffmprgvid.mp4
 video_processing.log
 __pycache__/
 logs/
+venv/

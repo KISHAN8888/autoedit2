@@ -1,6 +1,10 @@
 # app/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Settings(BaseSettings):
     # Environment
@@ -17,8 +21,8 @@ class Settings(BaseSettings):
     azure_openai_deployment_name: str
     
     # TTS
-    murf_api_key: Optional[str] = None
-    tts_engine: str = "gtts"
+    murf_api_key: Optional[str] = os.getenv("MURF_API_KEY")
+    tts_engine: str = "murf"
     target_wpm: float = 160.0
     
     # Google Drive

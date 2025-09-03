@@ -41,6 +41,21 @@ Start the application:
 docker compose -f docker-compose.yml up
 ```
 
+If facing issues with Docker command:
+
+Check entrypoint.sh - In code editor check bottom right for "CRLF" -> change it to "LF" and then save the file!
+and rerun the docker command! - fix for line endings in windows
+
+then run these commands:
+
+```bash
+docker compose down
+
+docker compose build --no-cache
+
+docker compose up
+```
+
 The API will be available at the configured port (typically `http://localhost:8000`).
 
 ### 3. Test the API
@@ -59,6 +74,14 @@ curl -X POST "http://localhost:8000/process-video" \
   -F "video=@your_video_file.mp4" \
   -F "user_id=test_user_123"
 ```
+#### Testing via Postman
+POST http://localhost:8000/process-video?user_id=test_user_123
+Body -> form-data
+key = "file"
+value = "select the input video file" ('.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v')
+
+GET http://localhost:8000/user/test_user_123/tasks
+To check the task status... Once completed this will return the google drive link for the output video!
 
 ## API Documentation
 
