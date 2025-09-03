@@ -11,6 +11,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pydantic>=2.7.0",
     "python-dotenv>=1.0.1",
+    "pydantic-settings==2.10.1",
 
     # Celery and task queue
     "celery[redis]>=5.4.0",
@@ -24,6 +25,7 @@ dependencies = [
     "openai>=1.23.6",
     "tiktoken>=0.7.0",
     "numpy>=1.26.4",
+    "pillow==11.3.0".
 
     # TTS engines
     "gtts>=2.5.1",

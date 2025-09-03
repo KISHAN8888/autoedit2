@@ -1,42 +1,42 @@
+# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install uv - a fast Python package installer
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
-
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# ENV CELERY_BROKER_URL=redis://localhost:6379/0
-# ENV CELERY_RESULT_BACKEND=redis://localhost:6379/0  
-
-ENV CELERY_BROKER_URL=redis://:yourredispassword@redis:6379/0
-ENV CELERY_RESULT_BACKEND=redis://:yourredispassword@redis:6379/0
-
-
-# Install system dependencies required by your packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies including FFmpeg
+RUN apt-get update && apt-get install -y \
     ffmpeg \
-    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set work directory
 WORKDIR /app
 
-# Copy only the dependency file first to leverage Docker cache
-COPY pyproject.toml .
+# Copy requirements first for better Docker layer caching
+COPY requirements.txt .
 
-# Install dependencies using uv
-# This installs the project defined in pyproject.toml
-# ADDED --system flag to install into the global site-packages
-RUN uv pip install --system --no-cache .
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy the entire project (including app/ directory)
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p /app/uploads /app/temp
+RUN mkdir -p uploads logs outputs
 
-# Default command (will be overridden by your docker-compose file for each service)
-CMD ["celery", "-A", "tasks", "worker", "--loglevel=info"]
+# Make entrypoint script executable
+RUN chmod +x entrypoint.sh
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Use entrypoint script
+ENTRYPOINT ["./entrypoint.sh"]

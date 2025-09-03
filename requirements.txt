@@ -54,3 +54,12 @@ sentry-sdk
 pytest
 pytest-asyncio
 pytest-cov
+
+pydantic-settings
+
+pillow
+
+# auth
+PyJWT==2.10.1
+bcrypt==4.3.0
+email-validator==2.3.0

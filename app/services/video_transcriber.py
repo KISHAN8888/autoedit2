@@ -422,9 +422,17 @@ class VideoTranscriber:
                     )
             
             transcript = await loop.run_in_executor(self.executor, make_api_call)
+            print(f"this is transcript{transcript}")
             
             logger.info("API transcription complete")
-            srt_content = str(transcript) if transcript else ""
+            
+            # Fix: Handle the response properly
+            if hasattr(transcript, 'text'):
+                # If it's an object with a text attribute
+                srt_content = transcript.text
+            else:
+                # If it's a string, remove quotes and unescape newlines
+                srt_content = str(transcript).strip('"').replace('\\n', '\n')
             
             if srt_content:
                 logger.info(f"Received SRT content: {len(srt_content)} characters")
@@ -518,36 +526,45 @@ class VideoTranscriber:
         return srt_content
     
     def normalize_srt_format(self, srt_content):
-        """Normalize SRT format to ensure consistent formatting"""
-        lines = [line.strip() for line in srt_content.strip().split('\n') if line.strip()]
-        
-        normalized_lines = []
-        i = 0
-        
-        while i < len(lines):
-            if lines[i].isdigit():
-                normalized_lines.append(lines[i])
-                i += 1
-                
-                if i < len(lines) and '-->' in lines[i]:
-                    normalized_lines.append(lines[i])
-                    i += 1
-                    
-                    subtitle_text_lines = []
-                    while i < len(lines) and not lines[i].isdigit():
-                        subtitle_text_lines.append(lines[i])
-                        i += 1
-                    
-                    normalized_lines.extend(subtitle_text_lines)
-                    
-                    if i < len(lines):
-                        normalized_lines.append("")
-                else:
-                    i += 1
-            else:
-                i += 1
-        
-        return '\n'.join(normalized_lines)
+       """Normalize SRT format to ensure consistent formatting"""
+       print(f"Input SRT content: {repr(srt_content)}")
+       print(f"Input length: {len(srt_content)}")
+       
+       lines = [line.strip() for line in srt_content.strip().split('\n') if line.strip()]
+       print(f"Lines after split and strip: {len(lines)}")
+       print(f"First few lines: {lines[:5]}")
+       
+       normalized_lines = []
+       i = 0
+       
+       while i < len(lines):
+           if lines[i].isdigit():
+               normalized_lines.append(lines[i])
+               i += 1
+               
+               if i < len(lines) and '-->' in lines[i]:
+                   normalized_lines.append(lines[i])
+                   i += 1
+                   
+                   subtitle_text_lines = []
+                   while i < len(lines) and not lines[i].isdigit():
+                       subtitle_text_lines.append(lines[i])
+                       i += 1
+                   
+                   normalized_lines.extend(subtitle_text_lines)
+                   
+                   if i < len(lines):
+                       normalized_lines.append("")
+               else:
+                   i += 1
+           else:
+               i += 1
+       
+       result = '\n'.join(normalized_lines)
+       print(f"Output SRT content: {repr(result)}")
+       print(f"Output length: {len(result)}")
+       
+       return result
     
     async def transcribe_video_async(self, input_video_path):
         """
@@ -587,3 +604,39 @@ class VideoTranscriber:
         """Cleanup thread pool executor"""
         if hasattr(self, 'executor'):
             self.executor.shutdown(wait=False)
+
+# async def main():
+#     video_path = r"C:\personal_projs\fastapi-demo\ffmprgvid.mp4"
+    
+#     # Check if file exists first
+#     if not os.path.exists(video_path):
+#         print(f"Error: Video file not found at {video_path}")
+#         return
+    
+#     print(f"Video file found: {video_path}")
+#     print(f"File size: {os.path.getsize(video_path) / (1024*1024):.2f} MB")
+    
+#     # Provide your API key
+#     api_key = "5cCrTnA7Nv73iujYaIxW302WLbfuVCnR"
+#     transcriber = VideoTranscriber(transcription_method="api", api_key=api_key)
+    
+#     try:
+#         # Call the method on the instance
+#         language, srt_content = await transcriber.transcribe_video_async(video_path) 
+#         print(f"Language: {language}")
+#         print(f"SRT content length: {len(srt_content)} characters")
+#         print(f"SRT content: {repr(srt_content)}")  # repr() shows exact content including whitespace
+        
+#         if not srt_content.strip():
+#             print("Warning: SRT content is empty or only whitespace")
+#         else:
+#             print(f"SRT: {srt_content}")
+            
+#     except Exception as e:
+#         print(f"Error during transcription: {e}")
+#         import traceback
+#         traceback.print_exc()
+
+# if __name__ == "__main__":
+#     import asyncio
+#     asyncio.run(main())
