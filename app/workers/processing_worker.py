@@ -314,9 +314,9 @@ async def _process_content_async(task_id: str, input_video_path: str, user_id: s
             
             audio_path, audio_duration = result
             sentence_group = sentence_groups[i]
-            
+
             sentence_groups_with_audio.append({
-                "index": sentence_group.index,
+                "index": i,  # Use sequential index instead of sentence_group.index
                 "grouped_text": sentence_group.grouped_text,
                 "original_segments": serialize_srt_segments(sentence_group.original_segments),
                 "start_seconds": sentence_group.start_seconds,
@@ -324,7 +324,17 @@ async def _process_content_async(task_id: str, input_video_path: str, user_id: s
                 "original_duration": sentence_group.original_duration,
                 "audio_path": audio_path,
                 "audio_duration": audio_duration
-            })
+            })            
+            # sentence_groups_with_audio.append({
+            #     "index": sentence_group.index,
+            #     "grouped_text": sentence_group.grouped_text,
+            #     "original_segments": serialize_srt_segments(sentence_group.original_segments),
+            #     "start_seconds": sentence_group.start_seconds,
+            #     "end_seconds": sentence_group.end_seconds,
+            #     "original_duration": sentence_group.original_duration,
+            #     "audio_path": audio_path,
+            #     "audio_duration": audio_duration
+            # })
         
         if not sentence_groups_with_audio:
             raise ValueError("All audio generation failed for sentence groups")
