@@ -1118,11 +1118,11 @@ class FFmpegProcessor:
             '-i', input_video,
             '-filter_complex', f'[0:v]setpts={1/safe_multiplier:.4f}*PTS[v]',
             '-map', '[v]',
-            '-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-an', output_path
+            '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', '-an', output_path
         ]
         
         def extract_video_sync():
-            result = subprocess.run(extract_cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(extract_cmd, capture_output=True, text=True, timeout=300)
             return result.returncode, result.stderr
 
         loop = asyncio.get_event_loop()
@@ -1512,7 +1512,7 @@ class VideoSummarizer:
                     '-i', mask_path,
                     '-filter_complex', filter_chain,
                     '-map', '[v_out]', '-map', '1:a',
-                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
+                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast',
                     '-pix_fmt', 'yuv420p', '-shortest',
                     output_video_path
                 ]
@@ -1528,7 +1528,7 @@ class VideoSummarizer:
                     '-i', input_video_path,
                     '-filter_complex', filter_chain,
                     '-map', '[v_out]', '-map', '1:a',
-                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
+                    '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast',
                     '-pix_fmt', 'yuv420p', '-shortest',
                     output_video_path
                 ]
