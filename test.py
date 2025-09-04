@@ -164,22 +164,79 @@
 #     else:
 #         asyncio.run(main())
 
+# test_process_video_endpoint.py
 import requests
+import json
+import os
 
-url = "http://127.0.0.1:8000/process-video"
+# Your bearer token
+BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGI1ZjQxOWRhYTU5YzE0ZmE0Y2QzYWMiLCJlbWFpbCI6Imtpc2hhbnRyaXBhdGhpMjAyNUBnbWFpbC5jb20iLCJleHAiOjE3NTY5MzE0ODJ9.nVkOpfjuj14Sql2EQXyp2tG7GrK8nXXZK5UrFwjZFHQ"
 
-# Replace with your local file path
-video_path = r"C:\Users\kisha\Downloads\Learn Excel Pivot Tables in 10 Minutes - A complete beginner's tutorial.mp4"
-params = {"user_id": "user123"} 
-# Open the file in binary mode
-with open(video_path, "rb") as f:
-    files = {"file": (video_path, f, "video/mp4")}
+# API endpoint
+API_URL = "http://localhost:8000/process-video"
 
+# Video file path
+VIDEO_PATH = r"C:\Users\kisha\Downloads\hallucinations.mp4"
 
-    response = requests.post(url, params=params,files=files)
+def test_process_video():
+    """Simple test for /process-video endpoint"""
+    
+    # Check if video exists
+    if not os.path.exists(VIDEO_PATH):
+        print(f"❌ Video file not found: {VIDEO_PATH}")
+        return
+    
+    # Headers with your bearer token
+    headers = {
+        "Authorization": f"Bearer {BEARER_TOKEN}"
+    }
+    
+    # Optional parameters
+    data = {
+        "background_image_path": "",  # Optional
+        "overlay_options": json.dumps({"opacity": 0.5})  # Optional JSON string
+    }
+    
+    try:
+        # Open video file
+        with open(VIDEO_PATH, "rb") as video_file:
+            files = {
+                "file": (
+                    os.path.basename(VIDEO_PATH),
+                    video_file,
+                    "video/mp4"
+                )
+            }
+            
+            print(f"�� Uploading video: {os.path.basename(VIDEO_PATH)}")
+            print(f"📊 File size: {os.path.getsize(VIDEO_PATH) / (1024*1024):.2f} MB")
+            
+            # Make the request
+            response = requests.post(
+                API_URL,
+                data=data,
+                files=files,
+                headers=headers,
+                timeout=60
+            )
+            
+            print(f"📡 Status Code: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print("✅ Success!")
+                print(f"🆔 Task ID: {result.get('task_id')}")
+                print(f"📊 Status: {result.get('status')}")
+                print(f"💬 Message: {result.get('message')}")
+            else:
+                print("❌ Failed!")
+                print(f"Response: {response.text}")
+                
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
-print("Status Code:", response.status_code)
-print("Response JSON:", response.json())
+if __name__ == "__main__":
+    test_process_video()
 
 
 # #============================= test mongo db ==========================

@@ -1118,7 +1118,7 @@ class FFmpegProcessor:
             '-i', input_video,
             '-filter_complex', f'[0:v]setpts={1/safe_multiplier:.4f}*PTS[v]',
             '-map', '[v]',
-            '-c:v', 'libx264', '-crf', '23', '-an', output_path
+            '-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-an', output_path
         ]
         
         def extract_video_sync():

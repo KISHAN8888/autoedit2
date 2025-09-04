@@ -330,8 +330,8 @@ async def _process_ffmpeg_async(task_id: str, input_video_path: str, sentence_gr
             celery_task.update_state(state='PROGRESS', meta={'progress': 30, 'status': 'Processing sentence groups'})
             
             semaphore = asyncio.Semaphore(4)
-            final_clips_for_concat = [None] * len(sentence_groups_data)
-    
+            final_clips_for_concat = {}  # Use dict to handle any index values
+            
             async def process_single_group_ffmpeg_only(group_data: dict):
                 async with semaphore:
                     i = group_data["index"]
@@ -373,7 +373,11 @@ async def _process_ffmpeg_async(task_id: str, input_video_path: str, sentence_gr
             tasks = [process_single_group_ffmpeg_only(group_data) for group_data in sentence_groups_data]
             await asyncio.gather(*tasks)
     
-            valid_final_clips = [clip for clip in final_clips_for_concat if clip]
+            # Sort by index to maintain proper order for concatenation
+            valid_final_clips = []
+            for index in sorted(final_clips_for_concat.keys()):
+                if final_clips_for_concat[index]:
+                    valid_final_clips.append(final_clips_for_concat[index])
             if not valid_final_clips:
                 raise ValueError("No video clips were successfully processed.")
     
