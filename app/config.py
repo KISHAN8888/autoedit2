@@ -84,12 +84,19 @@ class Settings(BaseSettings):
     
     # TTS
     murf_api_key: Optional[str] = None
-    tts_engine: str = "murf"
+    tts_engine: str = "gtts"
     target_wpm: float = 160.0
     
     # Google Drive
     google_service_account_path: str
     gdrive_folder_id: Optional[str] = None
+
+    # clouflare    
+    cloudflare_account_id: str
+    cloudflare_access_key_id: str
+    cloudflare_secret_access_key: str
+    r2_bucket_name: str
+    r2_public_domain: str
     
     # Transcription
     transcription_method: str = "api"

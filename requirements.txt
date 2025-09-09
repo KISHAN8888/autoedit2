@@ -27,10 +27,11 @@ murf
 # Cloud storage
 # google-api-python-client
 # google-oauth
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
+# google-auth>=2.15.0
+# google-auth-oauthlib
+# google-auth-httplib2
+# google-api-python-client
+boto3
 
 
 pymongo
