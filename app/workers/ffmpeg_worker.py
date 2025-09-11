@@ -83,7 +83,9 @@ async def _process_ffmpeg_async(task_id: str, input_video_path: str, sentence_gr
             azure_deployment_name=settings.azure_openai_deployment_name,
             murf_api_key=settings.murf_api_key,
             tts_engine=config.get('tts_engine', settings.tts_engine),
-            target_wpm=config.get('target_wpm', settings.target_wpm)
+            target_wpm=config.get('target_wpm', settings.target_wpm),
+            groq_playai_config=settings.groq_playai_config, 
+            vibe_voice_config=settings.vibe_voice_config,            
         )
         
         # Create temporary directory for FFmpeg processing

@@ -26,8 +26,8 @@ dependencies = [
     "tiktoken>=0.7.0",
     "numpy>=1.26.4",
     "pillow==11.3.0",
-    "groq"
-    "pydub"
+    "groq",
+    "pydub",
 
     # TTS engines
     "gtts>=2.5.1",

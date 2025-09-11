@@ -170,13 +170,13 @@ import json
 import os
 
 # Your bearer token
-BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGI1ZjQxOWRhYTU5YzE0ZmE0Y2QzYWMiLCJlbWFpbCI6Imtpc2hhbnRyaXBhdGhpMjAyNUBnbWFpbC5jb20iLCJleHAiOjE3NTc0NTc0MDN9.PzRhBGnOXO03oSjcdm5ofHxVr_cfJp7AHR4YDHn05hY"
+BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGI1ZjQxOWRhYTU5YzE0ZmE0Y2QzYWMiLCJlbWFpbCI6Imtpc2hhbnRyaXBhdGhpMjAyNUBnbWFpbC5jb20iLCJleHAiOjE3NTc2MjQ3NDh9.MtjfywTQI70CrkaL_ePpvw8Nm92nsOgqszG0Xxac4tA"
 
 # API endpoint
 API_URL = "http://localhost:8000/process-video"
 
 # Video file path
-VIDEO_PATH = r"C:\Users\kisha\Downloads\hallucinations.mp4"
+VIDEO_PATH = r"C:\Users\kisha\Downloads\Learn Excel Pivot Tables in 10 Minutes - A complete beginner's tutorial.mp4"
 
 def test_process_video():
     """Simple test for /process-video endpoint"""
